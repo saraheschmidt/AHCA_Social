@@ -29,12 +29,6 @@ library(zoo)
 library(venneuler)
 library(RSentiment)
 
-api_key <- "cxdwxchGYGmzGOzNAHtqn6yus"
-api_secret <- "uQnmcS8ksscrD10yAY9DrP8XfrmSSwBjr8fCgsMQqVoqTMkPbm"
-access_token <- "15086936-DDSo3VdbkpSBUrnY6SaVLKU8GVk6Bi4hYi3DOdhcx"
-access_token_secret <- "Ss9IUOAtmRLYhlG615wGCkhPek6omAZW2JLfvZbZEt0hI"
-setup_twitter_oauth(api_key,api_secret,access_token,access_token_secret)
-
 ##Read data
 data <- read.table("Raw Data/2017-05-13 08-PM_cleanedtweets.txt",
                     sep="\t", header=TRUE, fill=TRUE)
@@ -204,6 +198,52 @@ user_info_df$days <- Sys.Date() - as.Date(user_info_df$created)
 user_info_df$tweetRate <- user_info_df$statusesCount / as.integer(user_info_df$days)
 
 ggplot(user_info_df) +
+  geom_histogram(aes(tweetRate), 
+                 alpha=1, fill="deepskyblue", bins=200) +
+  ylab("") +
+  xlab("") +
+  theme_classic()
+
+quantile(user_info_df$tweetRate, c(.95,.99))
+
+ggplot(user_info_df) +
+  geom_histogram(aes(tweetRate), 
+                 alpha=1, fill="deepskyblue", bins=200) +
+  ylab("User Count") +
+  xlab("Tweets/Day") +
+  xlim(0,133) +
+  ggtitle("Distribution of User Activity Rates") +
+  theme_classic()
+
+ggplot(user_info_df) +
+  geom_hex(aes(x=tweetRate, y=followersCount), bins=75) +
+  ylab("Followers") +
+  xlab("Tweets/Day") +
+  xlim(1,100) +
+  ylim(1,11509) +
+  scale_fill_gradient(high="navy", low="deepskyblue") +
+  ggtitle("User Tweet Rate versus Follower Count") +
+  theme_classic()
+
+ggplot(user_info_df) +
+  geom_hex(aes(x=tweetRate, y=listedCount), bins=30) +
+  ylab("Listed Count") +
+  xlab("Tweets/Day") +
+  xlim(0,100) +
+  scale_fill_gradient(high="navy", low="deepskyblue") +
+  ggtitle("User Tweet Rate versus Listed Count") +
+  theme_classic()
+
+ggplot(user_info_df) +
+  geom_hex(aes(x=followersCount, y=listedCount),
+           bins=60) +
+  ylab("Listed Count") +
+  xlab("Followers Count") +
+  scale_fill_gradient(high="navy", low="deepskyblue") +
+  ggtitle("Followers Count versus Listed Count") +
+  theme_classic()
+
+ggplot(user_info_df) +
   geom_histogram(aes(friendsCount, fill="Friends"), 
                  alpha=0.5, bins=1000) +
   geom_histogram(aes(followersCount, fill="Followers"), 
@@ -279,53 +319,6 @@ hist(user_info_df$N)
 
 plot(user_info_df$tweetRate, user_info_df$N)
 
-###Geocoding and Mapping#############################################
-locations<-subset(healthcare, healthcare$location!="")
-
-locations$location<-gsub("%", " ",
-                         locations$location)
-
-locations <- as.data.table(locations)
-
-locations <- locations[, .N ,by = location]
-
-locations <- as.data.frame(locations)
-
-geo <- geocode(locations$location, source = "google", 
-              output = "all")
-
-condition_a <- sapply(geo, function(x) x["status"]=="OK")
-geo<-geo[condition_a]
-
-condition_b <- lapply(geo, lapply, length)
-condition_b2<-sapply(condition_b, function(x) x["results"]=="1")
-geo<-geo[condition_b2]
-length(geo)
-
-geocode_results <- geo
-source("https://raw.githubusercontent.com/LucasPuente/geocoding/master/cleaning_geocoded_results.R")
-results<-lapply(geocode_results, as.data.frame)
-
-results2<-lapply(results,function(x) subset(x, select=c("results.formatted_address",
-                                                            "results.geometry.location.lat",
-                                                            "results.geometry.location.lng")))
-resultsc<-lapply(results2,function(x) data.frame(Location=x[1,"results.formatted_address"],
-                                                     lat=x[1,"results.geometry.location.lat"],
-                                                     lng=x[2,"results.geometry.location.lng"]))
-
-resultsd<-rbindlist(resultsc)
-
-american<-subset(resultsd,
-                    grepl(", USA", resultsd$Location)==TRUE)
-
-american$commas<-sapply(american$Location, function(x)
-  length(as.numeric(gregexpr(",", as.character(x))[[1]])))
-american<-subset(american, commas==2)
-#Drop the "commas" column:
-american<-subset(american, select=-commas)
-
-nrow(american)
-
 ###Hashtag Analysis
 hashtags <- healthcare$hashtags
 hashtags <- hashtags[hashtags != "character(0)"]
@@ -380,6 +373,12 @@ wordcloud(words = names(word.freq), freq = word.freq, min.freq = 20,
 
 findAssocs(tdm, "trumpcare", 0.1)
 findAssocs(tdm, "aca", 0.1)
+findAssocs(tdm, "maga", 0.1)
+findAssocs(tdm, "trump", 0.1)
+findAssocs(tdm, "saveaca", 0.1)
+findAssocs(tdm, "ahcachat", 0.1)
+
+
 
 
 plot(tdm, term = freq.terms, corThreshold = 0.1, weighting=TRUE, 
@@ -541,11 +540,11 @@ pal <- brewer.pal(9, "BuGn")[-(1:4)]
 wordcloud(words = names(word.freq), freq = word.freq, min.freq = 10,
           random.order = F, colors = pal)
 
-findAssocs(tdm, "trumpcare", 0.3)
-findAssocs(tdm, "obamacare", 0.3)
-findAssocs(tdm, "senate", 0.4)
-findAssocs(tdm, "senate", 0.4)
-findAssocs(tdm, "gop", 0.2)
+findAssocs(tdm, "trumpcare", 0.1)
+findAssocs(tdm, "obamacare", 0.1)
+findAssocs(tdm, "aca", 0.1)
+findAssocs(tdm, "voices", 0.4)
+findAssocs(tdm, "gop", 0.1)
 findAssocs(tdm, "bill", 0.2)
 findAssocs(tdm, "support", 0.3)
 
@@ -800,6 +799,18 @@ getGeoDetails <- function(address){
   
   return(answer)
 }
+
+###Geocoding and Mapping#############################################
+locations<-subset(healthcare, healthcare$location!="")
+
+locations$location<-gsub("%", " ",
+                         locations$location)
+
+locations <- as.data.table(locations)
+
+locations <- locations[, .N ,by = location]
+
+locations <- as.data.frame(locations)
 
 #initialise a dataframe to hold the results
 geocoded <- data.frame()
